@@ -2443,7 +2443,7 @@ let pend=0;const obs=new MutationObserver(()=>{if(pend)return;pend=1;requestAnim
 ['modal-decision','modal-overlay','mg-panel'].forEach(id=>obs.observe(document.getElementById(id),{childList:true,subtree:true,attributes:true,attributeFilter:['class','style']}));
 addEventListener('resize',()=>requestAnimationFrame(all));
 const se=document.getElementById('screen-ending');if(se)se.style.backgroundImage="url('"+CERT_BG+"')";
-addEventListener('load',()=>{const L=(src,next)=>{const s=document.createElement('script');s.src=src;s.onload=s.onerror=next||null;document.head.appendChild(s);};setTimeout(()=>L('army_events.js',()=>L('army_victory.js')),400);});
+addEventListener('load',()=>{const L=(src,next)=>{const s=document.createElement('script');s.src=src;s.onload=s.onerror=next||null;document.head.appendChild(s);};setTimeout(()=>L('index_events.js',()=>L('index_victory.js')),400);});
 })();
 </script>
 
