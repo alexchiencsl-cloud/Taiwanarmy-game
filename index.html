@@ -165,6 +165,8 @@
         .branch-card.border-yellow-400 { box-shadow: 0 0 0 2px rgba(250,204,21,.65), 0 0 16px rgba(250,204,21,.55); transform: translateY(-2px); }
         .rpg-box { background-image: linear-gradient(180deg, rgba(255,255,255,.05), rgba(0,0,0,.18)); }
         #dec-banner > *, #exam-banner > * { animation: fadeIn .6s ease-out; }
+        @keyframes rescueGlow { 0%,100% { box-shadow: inset 0 2px 0 rgba(255,255,255,.2), 0 4px 0 #09100a, 0 0 0 rgba(250,204,21,0); } 50% { box-shadow: inset 0 2px 0 rgba(255,255,255,.2), 0 4px 0 #09100a, 0 0 14px rgba(250,204,21,.95); } }
+        .rescue-pulse { animation: rescueGlow 1.3s ease-in-out infinite; border-color: #facc15 !important; }
         ::-webkit-scrollbar { width: 5px; }
         ::-webkit-scrollbar-track { background: #0f1711; }
         ::-webkit-scrollbar-thumb { background: #eab308; border-radius: 3px; }
@@ -554,9 +556,9 @@ if(document.readyState==='complete')fin();else window.addEventListener('load',fi
             <div id="exam-options" class="space-y-2.5 my-3"></div>
 
             <div class="pt-2 border-t border-white/15 flex justify-between items-center">
-                <span class="text-[11px] text-gray-300">💡 營站小抄：可刪去兩個錯誤選項</span>
-                <button id="btn-5050" type="button" onclick="useExamCheat()" class="rpg-btn px-2.5 py-1 text-xs font-bold text-yellow-300">
-                    📜 偷看考古題 ($6K)
+                <span class="text-[11px] text-gray-300">💡 不會就求救長官！看廣告直接剔除 3 個錯誤選項</span>
+                <button id="btn-5050" type="button" onclick="useExamRescue()" class="rpg-btn px-2.5 py-1 text-xs font-bold text-yellow-300 rescue-pulse">
+                    🆘 求救長官（看廣告）
                 </button>
             </div>
         </div>
@@ -622,11 +624,24 @@ if(document.readyState==='complete')fin();else window.addEventListener('load',fi
         <div class="rpg-box" id="mg-hud2" style="padding:7px 10px; font-size:13px; color:#cbd5e1; text-align:center;"></div>
     </div>
 
+    <div id="ad-overlay" class="hidden" style="position:absolute; inset:0; z-index:80; background:rgba(0,0,0,.9); display:flex; align-items:center; justify-content:center; padding:20px;">
+        <div class="rpg-box" style="width:100%; max-width:320px; padding:16px; text-align:center; border:2px solid #facc15;">
+            <div id="ad-title" style="font-size:17px; font-weight:900; color:#fde047;">📡 連線國防部指揮中心…</div>
+            <div id="ad-msg" style="font-size:13px; color:#e5e7eb; line-height:1.7; margin:10px 0;">已在新分頁開啟廣告頁。<br>請<b style="color:#fde68a">看完廣告後返回本遊戲</b>，支援會自動送達！</div>
+            <div style="height:8px; background:#0b1522; border:1px solid #92400e; border-radius:4px; overflow:hidden;"><div id="ad-bar" style="height:100%; width:0%; background:linear-gradient(90deg,#dc2626,#eab308,#16a34a);"></div></div>
+            <div id="ad-sub" style="font-size:12px; color:#93c5fd; margin:8px 0;">等待你返回遊戲…</div>
+            <a id="ad-link" href="https://uplcm.com/4/12128613" target="_blank" rel="noopener noreferrer" style="display:inline-block; font-size:12px; color:#7dd3fc; text-decoration:underline; margin-bottom:10px;">沒有自動開啟？點此開啟廣告頁</a>
+            <button id="ad-claim" type="button" onclick="adGrant()" class="rpg-btn hidden" style="width:100%; padding:10px 0; font-size:13px; font-weight:900; color:#4ade80; margin-bottom:8px;">✅ 我已看完，領取支援</button>
+            <button type="button" onclick="adCancel()" class="rpg-btn" style="width:100%; padding:8px 0; font-size:12px; font-weight:700; color:#cbd5e1;">取消</button>
+        </div>
+    </div>
+
     <div id="modal-overlay" class="hidden absolute inset-0 z-50 bg-black/80 flex items-center justify-center p-5">
         <div class="rpg-box p-4 w-full max-w-xs text-center space-y-3 border-2 border-yellow-400">
             <div id="modal-banner" class="hidden" style="aspect-ratio:9/4; overflow:hidden; border-radius:6px; border:1px solid rgba(202,138,4,.6);"></div>
             <div id="modal-title" class="text-base font-black text-yellow-400">系統通知</div>
             <p id="modal-body" class="text-xs text-gray-100 leading-relaxed whitespace-pre-line"></p>
+            <button id="modal-btn2" type="button" onclick="modalExtra()" class="rpg-btn hidden" style="width:100%; padding:10px 0; font-size:13px; font-weight:900; color:#fde047; border-color:#dc2626;"></button>
             <button id="modal-btn" type="button" onclick="closeModal()" class="rpg-btn w-full py-2 text-xs font-black text-yellow-300">
                 報告，了解！
             </button>
@@ -1123,13 +1138,19 @@ function shuffleOpts(q) { const idx = [0, 1, 2, 3].sort(() => Math.random() - .5
 function scaleOpt(o) { const k = 1 + state.rankIdx * 0.1, c = { ...o }; if (c.merit < 0) c.merit = Math.round(c.merit * k); if (c.stress > 0) c.stress = Math.round(c.stress * k); return c; }
 function examRule() { const i = state.rankIdx; return { pass: [60, 65, 70, 75, 75, 80, 85, 85, 90][i] || 60, time: [28, 25, 22, 20, 18, 16, 14, 13, 12][i] || 28, cheat: 6 + i * 3, stars: "★".repeat(Math.min(5, 1 + Math.floor(i / 2))) }; }
 let examTimer = null;
+let examLeft = 0, examTotal = 1;
 function startExamTimer() {
     clearInterval(examTimer);
     const rule = examRule(), bar = document.getElementById("exam-timer-bar"), tx = document.getElementById("exam-timer-text");
-    let left = rule.time; bar.style.transform = "scaleX(1)"; tx.innerText = `⏱ ${rule.time} 秒`;
+    examLeft = rule.time; examTotal = rule.time; bar.style.transform = "scaleX(1)"; tx.innerText = `⏱ ${rule.time} 秒`;
+    resumeExamTimer();
+}
+function resumeExamTimer() {
+    clearInterval(examTimer);
+    const bar = document.getElementById("exam-timer-bar"), tx = document.getElementById("exam-timer-text");
     examTimer = setInterval(() => {
-        left -= 0.1; bar.style.transform = `scaleX(${Math.max(0, left / rule.time)})`; tx.innerText = `⏱ ${Math.max(0, Math.ceil(left))} 秒`;
-        if (left <= 0) { clearInterval(examTimer); submitExamAnswer(-1); }
+        examLeft -= 0.1; bar.style.transform = `scaleX(${Math.max(0, examLeft / examTotal)})`; tx.innerText = `⏱ ${Math.max(0, Math.ceil(examLeft))} 秒`;
+        if (examLeft <= 0) { clearInterval(examTimer); submitExamAnswer(-1); }
     }, 100);
 }
 
@@ -1531,7 +1552,7 @@ function startPromotionExam() {
     document.getElementById("exam-header-title").innerText = `【${curName} ➔ ${nextName}】晉升測驗`;
 
     document.getElementById("exam-pass").innerText = `${examRule().pass}分 ${examRule().stars}`;
-    document.getElementById("exam-banner").innerHTML = `<img src="${EXAM_BANNERS[state.rankIdx >= 8 ? 3 : state.rankIdx >= 6 ? 2 : state.rankIdx >= 3 ? 1 : 0]}" style="width:100%;height:100%;object-fit:cover" alt="">`;
+    { const eb = document.getElementById("exam-banner"), src = (typeof EXAM_BANNERS !== "undefined") && EXAM_BANNERS[state.rankIdx >= 8 ? 3 : state.rankIdx >= 6 ? 2 : state.rankIdx >= 3 ? 1 : 0]; if (src) { eb.style.display = "block"; eb.innerHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:cover" alt="">`; } else { eb.innerHTML = ""; eb.style.display = "none"; } }
     showScreen("screen-exam");
     renderExamQuestion();
 }
@@ -1550,8 +1571,9 @@ function renderExamQuestion() {
 
     const btn5050 = document.getElementById("btn-5050");
     btn5050.disabled = false;
-    btn5050.innerText = `📜 偷看考古題 ($${examRule().cheat}K)`;
+    btn5050.innerText = "🆘 求救長官（看廣告）";
     btn5050.classList.remove("opacity-40");
+    btn5050.classList.add("rescue-pulse");
 
     const optContainer = document.getElementById("exam-options");
     optContainer.innerHTML = "";
@@ -1568,28 +1590,22 @@ function renderExamQuestion() {
     });
 }
 
-function useExamCheat() {
+function useExamRescue() {
     if (state.examLock) return;
-    if (state.funds < examRule().cheat) {
-        openModal("資金不足", `營站阿姨表示：考古題小抄一份要 $${examRule().cheat}K，你的錢不夠喔！`);
-        return;
-    }
-    state.funds -= examRule().cheat; S().cheat++;
-    updateGameUI();
-
-    const qObj = state.examQuestions[state.examIndex];
-    const wrongIndices = [0, 1, 2, 3].filter(i => i !== qObj.ans).sort(() => Math.random() - 0.5).slice(0, 2);
-    wrongIndices.forEach(idx => {
-        const btn = document.getElementById(`exam-opt-${idx}`);
-        if (btn) {
-            btn.disabled = true;
-            btn.classList.add("opacity-25", "line-through");
-        }
-    });
-
-    const btn5050 = document.getElementById("btn-5050");
-    btn5050.disabled = true;
-    btn5050.classList.add("opacity-40");
+    const btn = document.getElementById("btn-5050"); if (btn.disabled) return;
+    clearInterval(examTimer);                      // 看廣告期間暫停倒數
+    const qIdx = state.examIndex;
+    watchAd("🎖️ 長官支援中", () => {
+        if (state.examIndex !== qIdx) return;      // 題目已換，不套用
+        const q = state.examQuestions[qIdx];
+        [0, 1, 2, 3].filter(i => i !== q.ans).forEach(i => {           // 3 個錯誤選項全部隱藏
+            const b = document.getElementById(`exam-opt-${i}`);
+            if (b) { b.disabled = true; b.classList.add("opacity-25", "line-through"); }
+        });
+        btn.disabled = true; btn.classList.add("opacity-40"); btn.classList.remove("rescue-pulse"); btn.innerText = "✅ 長官已提示";
+        document.getElementById("exam-timer-text").innerText = "🎖️ 長官：答案就剩這個！";
+        resumeExamTimer();
+    }, () => resumeExamTimer());
 }
 
 function submitExamAnswer(choiceIdx) {
@@ -1659,23 +1675,35 @@ function finishPromotionExam() {
             );
         }
     } else {
+        const prev = { merit: state.merit, stress: state.stress };
         state.merit = Math.max(20, state.merit - 20);
         state.stress = Math.min(100, state.stress + 15);
         updateGameUI();
 
-        if (state.turnsInRank >= curRank.maxStagnation) {
-            openModal(
-                "❌ 鑑測不及格且停年屆滿",
-                `鑑測成績：${state.examScore} 分（未達 ${PASS} 分及格標準）。\n且您於【${curRank.name}】停年已達上限（${curRank.maxStagnation}季），依規定立即辦理退伍！`,
-                () => triggerDischarge(`晉升鑑測未過且【${curRank.name}】停年屆滿，依規定退伍`)
-            );
-        } else {
-            const remain = curRank.maxStagnation - state.turnsInRank;
-            openModal(
-                "⚠️ 晉升鑑測不及格",
-                `鑑測成績：${state.examScore} 分（未滿 ${PASS} 分）。\n本次晉升失敗！考績 -20、壓力 +15。\n\n⚠️ 距離本階最大停年強制退伍還剩 ${remain} 季，請重整旗鼓再戰！`
-            );
-        }
+        const retry = {
+            label: "🆘 求救國防部（看廣告重考）",
+            cb: () => watchAd("📡 國防部補考特許", () => {
+                state.merit = prev.merit; state.stress = prev.stress;   // 重考視同未失敗，扣分還原
+                updateGameUI(); startPromotionExam();
+            }, () => showFail())
+        };
+        const showFail = () => {
+            if (state.turnsInRank >= curRank.maxStagnation) {
+                openModal(
+                    "❌ 鑑測不及格且停年屆滿",
+                    `鑑測成績：${state.examScore} 分（未達 ${PASS} 分及格標準）。\n且您於【${curRank.name}】停年已達上限（${curRank.maxStagnation}季），依規定立即辦理退伍！\n\n💡 向國防部求救：看廣告即可立刻重考一次，保住軍旅生涯！`,
+                    () => triggerDischarge(`晉升鑑測未過且【${curRank.name}】停年屆滿，依規定退伍`), null, retry
+                );
+            } else {
+                const remain = curRank.maxStagnation - state.turnsInRank;
+                openModal(
+                    "⚠️ 晉升鑑測不及格",
+                    `鑑測成績：${state.examScore} 分（未滿 ${PASS} 分）。\n本次晉升失敗！考績 -20、壓力 +15。\n\n⚠️ 距離本階最大停年強制退伍還剩 ${remain} 季。\n\n💡 向國防部求救：看廣告即可免扣分、立刻重考一次！`,
+                    null, null, retry
+                );
+            }
+        };
+        showFail();
     }
 }
 
@@ -1716,7 +1744,11 @@ function openInfoModal() {
 }
 
 let modalCallback = null;
-function openModal(title, body, onConfirm = null, banner = null) {
+let modalExtraCb = null;
+function modalExtra() { document.getElementById("modal-overlay").classList.add("hidden"); modalCallback = null; const cb = modalExtraCb; modalExtraCb = null; if (cb) cb(); }
+function openModal(title, body, onConfirm = null, banner = null, extra = null) {
+    const b2 = document.getElementById("modal-btn2"); modalExtraCb = extra ? extra.cb : null;
+    if (extra) { b2.innerText = extra.label; b2.classList.remove("hidden"); } else { b2.classList.add("hidden"); }
     const mb = document.getElementById("modal-banner");
     if (banner) { mb.innerHTML = `<img src="${banner}" style="width:100%;height:100%;object-fit:cover;animation:fadeIn .6s ease-out" alt="">`; mb.classList.remove("hidden"); } else { mb.innerHTML = ""; mb.classList.add("hidden"); }
     document.getElementById("modal-title").innerText = title;
@@ -2445,6 +2477,41 @@ addEventListener('resize',()=>requestAnimationFrame(all));
 const se=document.getElementById('screen-ending');if(se)se.style.backgroundImage="url('"+CERT_BG+"')";
 addEventListener('load',()=>{const L=(src,next)=>{const s=document.createElement('script');s.src=src;s.onload=s.onerror=next||null;document.head.appendChild(s);};setTimeout(()=>L('index_events.js',()=>L('index_victory.js')),400);});
 })();
+
+/* ====== 廣告支援（Direct Link）：看廣告 → 返回遊戲 → 領取獎勵 ====== */
+const AD_URL = "https://uplcm.com/4/12128613";
+let adState = null, adTimer = null;
+function watchAd(label, onReward, onCancel) {
+    let w = null; try { w = window.open(AD_URL, "_blank"); } catch (e) {}      // 必須在使用者點擊當下開啟，才不會被擋
+    adState = { t0: Date.now(), hid: false, hidAt: 0, onReward, onCancel };
+    document.getElementById("ad-title").innerText = label;
+    document.getElementById("ad-msg").innerHTML = w ? "已在新分頁開啟廣告頁。<br>請<b style='color:#fde68a'>看完廣告後返回本遊戲</b>，支援會自動送達！" : "瀏覽器擋住了新分頁，請點下方連結開啟廣告，<br><b style='color:#fde68a'>看完後返回本遊戲</b>即可領取。";
+    document.getElementById("ad-claim").classList.add("hidden"); document.getElementById("ad-bar").style.width = "0%"; document.getElementById("ad-sub").innerText = "等待你返回遊戲…";
+    document.getElementById("ad-overlay").classList.remove("hidden");
+    clearInterval(adTimer);
+    adTimer = setInterval(() => {
+        if (!adState) return; const el = Date.now() - adState.t0;
+        if (adState.hid && (document.hidden || adState.blur)) { const away = Date.now() - adState.hidAt; document.getElementById("ad-bar").style.width = Math.min(100, away / 4000 * 100) + "%"; document.getElementById("ad-sub").innerText = away < 4000 ? "廣告觀看中…請再停留一下" : "看完了就返回遊戲吧！"; }
+        if (el > 12000) document.getElementById("ad-claim").classList.remove("hidden");     // 備援：行動裝置內建瀏覽器偵測不到切頁時
+    }, 250);
+}
+function adAway() { if (adState && !adState.hid) { adState.hid = true; adState.hidAt = Date.now(); } else if (adState && adState.hid && !adState.back) { adState.hidAt = adState.hidAt || Date.now(); } }
+function adBack() {
+    if (!adState || !adState.hid) return;
+    if (Date.now() - adState.hidAt >= 4000) adGrant();
+    else { adState.hid = false; document.getElementById("ad-sub").innerText = "太快回來了！請完整看完廣告再返回喔～"; document.getElementById("ad-bar").style.width = "0%"; }
+}
+function adGrant() {
+    if (!adState) return; clearInterval(adTimer); const cb = adState.onReward; adState = null;
+    document.getElementById("ad-overlay").classList.add("hidden"); if (cb) cb();
+}
+function adCancel() {
+    if (!adState) return; clearInterval(adTimer); const cb = adState.onCancel; adState = null;
+    document.getElementById("ad-overlay").classList.add("hidden"); if (cb) cb();
+}
+document.addEventListener("visibilitychange", () => { if (document.hidden) adAway(); else adBack(); });
+window.addEventListener("blur", () => { if (adState) { adState.blur = true; adAway(); } });
+window.addEventListener("focus", () => { if (adState) { adState.blur = false; adBack(); } });
 </script>
 
 </body>
